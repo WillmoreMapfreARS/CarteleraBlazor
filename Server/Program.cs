@@ -1,4 +1,9 @@
 using Microsoft.AspNetCore.ResponseCompression;
+using CarteleraBlazor.Server.DataManager;
+using CarteleraBlazor.Server.Helpers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +11,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+
+builder.Services.AddTransient(x => new DataManager(builder.Configuration.GetConnectionString("Default")!, builder.Configuration));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(
+    option => option.TokenValidationParameters= new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuer=false,
+        ValidateAudience=false,
+        ValidateIssuerSigningKey= true,
+        IssuerSigningKey= new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTKey"]!)),
+        ClockSkew=TimeSpan.Zero
+    });
+builder.Services.AddTransient<ISaveFile,SaveLocalFile>();
 
 var app = builder.Build();
 
@@ -25,9 +43,9 @@ app.UseHttpsRedirection();
 
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
-
 app.UseRouting();
-
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapControllers();
